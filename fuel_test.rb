@@ -8,8 +8,8 @@ module Space
     def test_single_modules
       assert_required_fuel_for_module(2, 12)
       assert_required_fuel_for_module(2, 14)
-      assert_required_fuel_for_module(654, 1969)
-      assert_required_fuel_for_module(33583, 100756)
+      assert_required_fuel_for_module(966, 1969)
+      assert_required_fuel_for_module(50346, 100756)
     end
 
     private
