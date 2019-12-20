@@ -1,4 +1,6 @@
 module Optcode
+  class UnknownInstruction < StandardError; end
+
   class Computer
     def initialize(input)
       @input = input
@@ -12,6 +14,8 @@ module Optcode
           multiply(slice)
         elsif slice[0] == 99
           return @input
+        else
+          raise UnknownInstruction.new("unknown instruction: #{slice[0]}")
         end
       end
       return @input
