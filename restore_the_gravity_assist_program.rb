@@ -8,7 +8,7 @@ array_of_numbers = string_input.split(",").map(&:to_i)
   array_of_numbers[1] = i
   (0..99).each do |j|
     array_of_numbers[2] = j
-    result = Optcode::Computer.new(array_of_numbers.clone).execute[0]
+    result = Optcode::Computer.new(STDIN, array_of_numbers.clone).execute[0]
     if result == 19690720
       puts 100 * i + j
     end
