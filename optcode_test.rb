@@ -16,18 +16,18 @@ module Optcode
 
     def test_unknown_instruction
       assert_raises(UnknownInstruction) do
-        Computer.new(fake_stdin("55"), [5,0,0,0,99]).execute
+        Computer.new(fake_stdin(55), [5,0,0,0,99]).execute
       end
     end
 
     def test_3_input_instruction
-      assert_equal(Computer.new(fake_stdin("55"), [3,2,0]).execute, [3, 2, 55])
+      assert_equal(Computer.new(fake_stdin(99), [3,2,0]).execute, [3, 2, 99])
     end
 
     private
 
     def assert_result(input, output)
-      assert_equal(output, Computer.new(fake_stdin("55"), input).execute)
+      assert_equal(output, Computer.new(fake_stdin(55), input).execute)
     end
 
     def fake_stdin(fake_input)
