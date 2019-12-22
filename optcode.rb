@@ -28,36 +28,40 @@ module Optcode
   end
 
   class Add
-    def initialize(memory, slice)
+    def initialize(memory, left, right, output_position)
       @memory = memory
-      @slice  = slice
+      @left   = left
+      @right  = right
+      @output_position = output_position
     end
 
     def call
-      @memory.set(@slice[3], @memory.get(@slice[1]) + @memory.get(@slice[2]))
+      @memory.set(@output_position, @left + @right)
     end
   end
 
   class Multiply
-    def initialize(memory, slice)
+    def initialize(memory, left, right, output_position)
       @memory = memory
-      @slice  = slice
+      @left   = left
+      @right  = right
+      @output_position = output_position
     end
 
     def call
-      @memory.set(@slice[3], @memory.content[@slice[1]] * @memory.content[@slice[2]])
+      @memory.set(@output_position, @left * @right)
     end
   end
 
   class StoreInput
-    def initialize(memory, slice, input)
-      @memory = memory
-      @slice  = slice
-      @input  = input
+    def initialize(memory, position, input)
+      @memory    = memory
+      @position  = position
+      @input     = input
     end
 
     def call
-      @memory.set(@slice[1], @input.gets.to_i)
+      @memory.set(@position, @input.gets.to_i)
     end
   end
 
@@ -92,13 +96,13 @@ module Optcode
       @pointer = 0
       while true do
         if @memory.get(@pointer) == 1
-          yield Add.new(@memory, @memory.get_slice(@pointer, 4))
+          yield add
           @pointer += 4
         elsif @memory.get(@pointer) == 2
-          yield Multiply.new(@memory, @memory.get_slice(@pointer, 4))
+          yield multiply
           @pointer += 4
         elsif @memory.get(@pointer) == 3
-          yield StoreInput.new(@memory, @memory.get_slice(@pointer, 2), input)
+          yield store_input(input)
           @pointer += 2
         elsif @memory.get(@pointer) == 99
           yield -> { raise Halted }
@@ -107,6 +111,22 @@ module Optcode
           yield -> {raise UnknownInstruction.new(@memory.get(@pointer))}
         end
       end
+    end
+
+    private
+
+    def store_input(input)
+      StoreInput.new(@memory, @memory.get(@pointer+1), input)
+    end
+
+    def multiply
+      slice = @memory.get_slice(@pointer, 4)
+      Multiply.new(@memory, @memory.get(slice[1]), @memory.get(slice[2]), slice[3])
+    end
+
+    def add
+      slice = @memory.get_slice(@pointer, 4)
+      Add.new(@memory, @memory.get(slice[1]), @memory.get(slice[2]), slice[3])
     end
   end
 
