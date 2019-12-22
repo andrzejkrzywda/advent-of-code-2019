@@ -10,13 +10,19 @@ module Optcode
 
     def execute
       begin
-        @memory.each_instruction(@input) do |instruction|
-          instruction.call
-        end
+        execute_all_instructions
       rescue Halted
         return @memory.content
       end
       return @memory.content
+    end
+
+    private
+
+    def execute_all_instructions
+      InstructionParser.new(@memory).each_instruction(@input) do |instruction|
+        instruction.call
+      end
     end
 
   end
@@ -28,7 +34,7 @@ module Optcode
     end
 
     def call
-      @memory.content[@slice[3]] = @memory.content[@slice[1]] + @memory.content[@slice[2]]
+      @memory.set(@slice[3], @memory.get(@slice[1]) + @memory.get(@slice[2]))
     end
   end
 
@@ -39,7 +45,7 @@ module Optcode
     end
 
     def call
-      @memory.content[@slice[3]] = @memory.content[@slice[1]] * @memory.content[@slice[2]]
+      @memory.set(@slice[3], @memory.content[@slice[1]] * @memory.content[@slice[2]])
     end
   end
 
@@ -51,7 +57,7 @@ module Optcode
     end
 
     def call
-      @memory.content[@slice[1]] = @input.gets.to_i
+      @memory.set(@slice[1], @input.gets.to_i)
     end
   end
 
@@ -62,23 +68,43 @@ module Optcode
       @content = content
     end
 
+    def set(position, value)
+      @content[position] = value
+    end
+
+    def get(position)
+      @content[position]
+    end
+
+    def get_slice(position, length)
+      @content[position..position+length+1]
+    end
+
+  end
+
+  class InstructionParser
+    def initialize(memory)
+      @memory  = memory
+      @pointer = 0
+    end
+
     def each_instruction(input)
       @pointer = 0
       while true do
-        if @content[@pointer] == 1
-          yield Add.new(self, @content[@pointer..@pointer+3])
+        if @memory.get(@pointer) == 1
+          yield Add.new(@memory, @memory.get_slice(@pointer, 4))
           @pointer += 4
-        elsif @content[@pointer] == 2
-          yield Multiply.new(self, @content[@pointer..@pointer+3])
+        elsif @memory.get(@pointer) == 2
+          yield Multiply.new(@memory, @memory.get_slice(@pointer, 4))
           @pointer += 4
-        elsif @content[@pointer] == 3
-          yield StoreInput.new(self, @content[@pointer..@pointer+1], input)
+        elsif @memory.get(@pointer) == 3
+          yield StoreInput.new(@memory, @memory.get_slice(@pointer, 2), input)
           @pointer += 2
-        elsif @content[@pointer] == 99
+        elsif @memory.get(@pointer) == 99
           yield -> { raise Halted }
           return
         else
-          yield -> {raise UnknownInstruction.new(@content[@pointer])}
+          yield -> {raise UnknownInstruction.new(@memory.get(@pointer))}
         end
       end
     end
