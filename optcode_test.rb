@@ -16,18 +16,18 @@ module Optcode
 
     def test_unknown_instruction
       assert_raises(UnknownInstruction) do
-        Computer.new(fake_stdin(55), [5,0,0,0,99]).execute
+        Computer.new(fake_stdin(55), fake_stdout, [5,0,0,0,99]).execute
       end
     end
 
     def test_3_input_instruction
-      assert_equal(Computer.new(fake_stdin(99), [3,2,0]).execute, [3, 2, 99])
+      assert_equal(Computer.new(fake_stdin(99), fake_stdout, [3,2,0]).execute, [3, 2, 99])
     end
 
     private
 
     def assert_result(input, output)
-      assert_equal(output, Computer.new(fake_stdin(55), input).execute)
+      assert_equal(output, Computer.new(fake_stdin(55), fake_stdout, input).execute)
     end
 
     def fake_stdin(fake_input)
@@ -36,6 +36,17 @@ module Optcode
         "#{fake_input}\n"
       end
       fake_stdin
+    end
+
+    def fake_stdout
+      fake_stdout = Object.new
+      fake_stdout.define_singleton_method(:puts) do |content|
+        fake_stdout.instance_variable_set(:content, content)
+      end
+      fake_stdout.define_singleton_method(:content) do
+        fake_stdout.instance_variable_get(:content)
+      end
+      fake_stdout
     end
   end
 end

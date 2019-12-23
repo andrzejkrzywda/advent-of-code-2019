@@ -3,8 +3,9 @@ module Optcode
   class Halted < StandardError;             end
 
   class Computer
-    def initialize(input, memory)
+    def initialize(input, output, memory)
       @input  = input
+      @output = output
       @memory = Memory.new(memory)
     end
 
@@ -20,7 +21,7 @@ module Optcode
     private
 
     def execute_all_instructions
-      InstructionParser.new(@memory).each_instruction(@input) do |instruction|
+      InstructionParser.new(@memory).each_instruction(@input, @output) do |instruction|
         instruction.call
       end
     end
@@ -65,6 +66,17 @@ module Optcode
     end
   end
 
+  class OutputValue
+    def initialize(value, output)
+      @value  = value
+      @output = output
+    end
+
+    def call
+      @output.puts(@value)
+    end
+  end
+
   class Memory
     attr_accessor :content
 
@@ -92,21 +104,23 @@ module Optcode
       @pointer = 0
     end
 
-    def each_instruction(input)
+    def each_instruction(input, output)
       @pointer = 0
       while true do
-        if @memory.get(@pointer) == 1
+        if add_instruction?
           yield add
           @pointer += 4
-        elsif @memory.get(@pointer) == 2
+        elsif multiply_instruction?
           yield multiply
           @pointer += 4
-        elsif @memory.get(@pointer) == 3
+        elsif store_input_instruction?
           yield store_input(input)
           @pointer += 2
-        elsif @memory.get(@pointer) == 99
+        elsif output_value_instruction?
+          yield output_value(output)
+          @pointer += 2
+        elsif halt_instruction?
           yield -> { raise Halted }
-          return
         else
           yield -> {raise UnknownInstruction.new(@memory.get(@pointer))}
         end
@@ -115,20 +129,102 @@ module Optcode
 
     private
 
+    def halt_instruction?
+      @memory.get(@pointer) == 99
+    end
+
+    def output_value_instruction?
+      @memory.get(@pointer) == 4 || @memory.get(@pointer).to_s.end_with?("4")
+    end
+
+    def store_input_instruction?
+      @memory.get(@pointer) == 3 || @memory.get(@pointer).to_s.end_with?("3")
+    end
+
+    def multiply_instruction?
+      @memory.get(@pointer) == 2 || @memory.get(@pointer).to_s.end_with?("2")
+    end
+
+    def add_instruction?
+      @memory.get(@pointer) == 1 || @memory.get(@pointer).to_s.end_with?("1")
+    end
+
     def store_input(input)
       StoreInput.new(@memory, @memory.get(@pointer+1), input)
     end
 
+    def output_value(output)
+      instruction = Instruction.new(@memory.get(@pointer).to_s)
+      if instruction.param_1_mode == "0"
+        value = @memory.get(@memory.get(@pointer+1))
+      else
+        value = @memory.get(@pointer+1)
+      end
+      OutputValue.new(value, output)
+    end
+
     def multiply
       slice = @memory.get_slice(@pointer, 4)
-      Multiply.new(@memory, @memory.get(slice[1]), @memory.get(slice[2]), slice[3])
+      instruction = Instruction.new(slice[0].to_s)
+      if instruction.param_1_mode == "0"
+        left = @memory.get(slice[1])
+      else
+        left = slice[1]
+      end
+      if instruction.param_2_mode == "0"
+        right = @memory.get(slice[2])
+      else
+        right = slice[2]
+      end
+      Multiply.new(@memory, left, right, slice[3])
     end
 
     def add
       slice = @memory.get_slice(@pointer, 4)
-      Add.new(@memory, @memory.get(slice[1]), @memory.get(slice[2]), slice[3])
+      instruction = Instruction.new(slice[0].to_s)
+      if instruction.param_1_mode == "0"
+        left = @memory.get(slice[1])
+      else
+        left = slice[1]
+      end
+      if instruction.param_2_mode == "0"
+        right = @memory.get(slice[2])
+      else
+        right = slice[2]
+      end
+      Add.new(@memory, left, right, slice[3])
     end
   end
 
+  class Instruction
+    def initialize(code)
+      @code = if code.length == 1
+                "0000#{code}"
+              elsif code.length == 2
+                "000#{code}"
+              elsif code.length == 3
+                "00#{code}"
+              elsif code.length == 4
+                "0#{code}"
+              else
+                code
+              end
+    end
 
+    def opcode
+      @code[-2..-1].merge.to_i
+    end
+
+    def param_1_mode
+      @code[2]
+    end
+
+    def param_2_mode
+      @code[1]
+    end
+
+    def param_3_mode
+      @code[0]
+    end
+  end
 end
