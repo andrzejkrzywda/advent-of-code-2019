@@ -153,6 +153,11 @@ module Optcode
     end
 
     def multiply
+      left, right, output_position = retrieve_values
+      Multiply.new(@memory, left, right, output_position)
+    end
+
+    def retrieve_values
       slice = @memory.get_slice(@pointer, 4)
       instruction = Instruction.new(slice[0].to_s)
       if instruction.param_1_mode == "0"
@@ -165,23 +170,12 @@ module Optcode
       else
         right = slice[2]
       end
-      Multiply.new(@memory, left, right, slice[3])
+      return left, right, slice[3]
     end
 
     def add
-      slice = @memory.get_slice(@pointer, 4)
-      instruction = Instruction.new(slice[0].to_s)
-      if instruction.param_1_mode == "0"
-        left = @memory.get(slice[1])
-      else
-        left = slice[1]
-      end
-      if instruction.param_2_mode == "0"
-        right = @memory.get(slice[2])
-      else
-        right = slice[2]
-      end
-      Add.new(@memory, left, right, slice[3])
+      left, right, output_position = retrieve_values
+      Add.new(@memory, left, right, output_position)
     end
   end
 
