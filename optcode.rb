@@ -54,6 +54,22 @@ module Optcode
     end
   end
 
+  class JumpIfTrue
+    def initialize(parser, param, output_position)
+      @parser = parser
+      @param  = param
+      @output_position = output_position
+    end
+
+    def call
+      if @param.zero?
+        @parser.move_instruction_pointer_to(@output_position)
+      else
+        @parser.increase_pointer_by(2)
+      end
+    end
+  end
+
   class StoreInput
     def initialize(memory, position, input)
       @memory    = memory
@@ -119,12 +135,22 @@ module Optcode
         elsif instruction_ends_with?(4)
           yield output_value(output)
           @pointer += 2
+        elsif instruction_ends_with?(5)
+          yield jump_if_true
         elsif instruction_ends_with?(99)
           yield -> { raise Halted }
         else
           yield -> {raise UnknownInstruction.new(@memory.get(@pointer))}
         end
       end
+    end
+
+    def move_instruction_pointer_to(new_pointer)
+      @pointer = new_pointer
+    end
+
+    def increase_pointer_by(count)
+      @pointer += count
     end
 
     private
@@ -140,6 +166,21 @@ module Optcode
 
     def store_input(input)
       StoreInput.new(@memory, @memory.get(@pointer+1), input)
+    end
+
+    def jump_if_true
+      instruction = Instruction.new(@memory.get(@pointer).to_s)
+      if instruction.param_1_mode == "0"
+        param = @memory.get(@memory.get(@pointer+1))
+      else
+        param = @memory.get(@pointer+1)
+      end
+      if instruction.param_2_mode == "0"
+        output_position = @memory.get(@memory.get(@pointer+1))
+      else
+        output_position = @memory.get(@pointer+1)
+      end
+      JumpIfTrue.new(self, param, output_position)
     end
 
     def output_value(output)
