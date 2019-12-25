@@ -20,6 +20,12 @@ module Optcode
       assert_equal(8332629, fake_stdout.contents.last)
     end
 
+    def test_5_2_acceptance
+      fake_stdout = FakeStdout.new
+      Optcode::Computer.new(fake_stdin(5), fake_stdout, input_5_file_data).execute
+      assert_equal(123, fake_stdout.contents.last)
+    end
+
     def test_unknown_instruction
       assert_raises(UnknownInstruction) do
         Computer.new(fake_stdin(55), FakeStdout.new, [5,0,0,0,99]).execute
