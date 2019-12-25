@@ -107,19 +107,19 @@ module Optcode
     def each_instruction(input, output)
       @pointer = 0
       while true do
-        if add_instruction?
+        if instruction_ends_with?(1)
           yield add
           @pointer += 4
-        elsif multiply_instruction?
+        elsif instruction_ends_with?(2)
           yield multiply
           @pointer += 4
-        elsif store_input_instruction?
+        elsif instruction_ends_with?(3)
           yield store_input(input)
           @pointer += 2
-        elsif output_value_instruction?
+        elsif instruction_ends_with?(4)
           yield output_value(output)
           @pointer += 2
-        elsif halt_instruction?
+        elsif instruction_ends_with?(99)
           yield -> { raise Halted }
         else
           yield -> {raise UnknownInstruction.new(@memory.get(@pointer))}
@@ -133,20 +133,9 @@ module Optcode
       @memory.get(@pointer) == 99
     end
 
-    def output_value_instruction?
-      @memory.get(@pointer) == 4 || @memory.get(@pointer).to_s.end_with?("4")
-    end
-
-    def store_input_instruction?
-      @memory.get(@pointer) == 3 || @memory.get(@pointer).to_s.end_with?("3")
-    end
-
-    def multiply_instruction?
-      @memory.get(@pointer) == 2 || @memory.get(@pointer).to_s.end_with?("2")
-    end
-
-    def add_instruction?
-      @memory.get(@pointer) == 1 || @memory.get(@pointer).to_s.end_with?("1")
+    def instruction_ends_with?(number)
+      @memory.get(@pointer) == number ||
+        @memory.get(@pointer).to_s.end_with?(number.to_s)
     end
 
     def store_input(input)
@@ -198,17 +187,7 @@ module Optcode
 
   class Instruction
     def initialize(code)
-      @code = if code.length == 1
-                "0000#{code}"
-              elsif code.length == 2
-                "000#{code}"
-              elsif code.length == 3
-                "00#{code}"
-              elsif code.length == 4
-                "0#{code}"
-              else
-                code
-              end
+      @code = build_code_string(code)
     end
 
     def opcode
@@ -225,6 +204,22 @@ module Optcode
 
     def param_3_mode
       @code[0]
+    end
+
+    private
+
+    def build_code_string(code)
+      if code.length == 1
+        "0000#{code}"
+      elsif code.length == 2
+        "000#{code}"
+      elsif code.length == 3
+        "00#{code}"
+      elsif code.length == 4
+        "0#{code}"
+      else
+        code
+      end
     end
   end
 end
