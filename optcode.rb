@@ -62,11 +62,57 @@ module Optcode
     end
 
     def call
+      if not @param.zero?
+        @parser.move_instruction_pointer_to(@output_position)
+      else
+        @parser.increase_pointer_by(3)
+      end
+    end
+  end
+
+  class JumpIfFalse
+    def initialize(parser, param, output_position)
+      @parser = parser
+      @param  = param
+      @output_position = output_position
+    end
+
+    def call
       if @param.zero?
         @parser.move_instruction_pointer_to(@output_position)
       else
-        @parser.increase_pointer_by(2)
+        @parser.increase_pointer_by(3)
       end
+    end
+  end
+
+  class Equals
+    def initialize(memory, parser, left, right, output_position)
+      @memory = memory
+      @parser = parser
+      @left   = left
+      @right  = right
+      @output_position = output_position
+    end
+
+    def call
+      @memory.set(@output_position, (@left == @right) ? 1 : 0)
+      @parser.increase_pointer_by(4)
+    end
+  end
+
+  class LessThan
+    def initialize(memory, parser, left, right, output_position)
+      @memory = memory
+      @parser = parser
+      @left   = left
+      @right  = right
+      @output_position = output_position
+    end
+
+    def call
+      @memory.set(@output_position, (@left < @right) ? 1 : 0)
+      @parser.increase_pointer_by(4)
     end
   end
 
@@ -78,7 +124,8 @@ module Optcode
     end
 
     def call
-      @memory.set(@position, @input.gets.to_i)
+      input = @input.gets.to_i
+      @memory.set(@position, input)
     end
   end
 
@@ -137,6 +184,12 @@ module Optcode
           @pointer += 2
         elsif instruction_ends_with?(5)
           yield jump_if_true
+        elsif instruction_ends_with?(6)
+          yield jump_if_false
+        elsif instruction_ends_with?(7)
+          yield less_than
+        elsif instruction_ends_with?(8)
+          yield equals
         elsif instruction_ends_with?(99)
           yield -> { raise Halted }
         else
@@ -169,18 +222,38 @@ module Optcode
     end
 
     def jump_if_true
+      param, output_position  = get_param_and_output_position
+      JumpIfTrue.new(self, param, output_position)
+    end
+
+    def jump_if_false
+      param, output_position  = get_param_and_output_position
+      JumpIfFalse.new(self, param, output_position)
+    end
+
+    def get_param_and_output_position
       instruction = Instruction.new(@memory.get(@pointer).to_s)
       if instruction.param_1_mode == "0"
-        param = @memory.get(@memory.get(@pointer+1))
+        param = @memory.get(@memory.get(@pointer + 1))
       else
-        param = @memory.get(@pointer+1)
+        param = @memory.get(@pointer + 1)
       end
       if instruction.param_2_mode == "0"
-        output_position = @memory.get(@memory.get(@pointer+1))
+        output_position = @memory.get(@memory.get(@pointer + 2))
       else
-        output_position = @memory.get(@pointer+1)
+        output_position = @memory.get(@pointer + 2)
       end
-      JumpIfTrue.new(self, param, output_position)
+      return param, output_position
+    end
+
+    def equals
+      left, right, output_position = retrieve_values
+      Equals.new(@memory, self, left, right, output_position)
+    end
+
+    def less_than
+      left, right, output_position = retrieve_values
+      LessThan.new(@memory, self, left, right, output_position)
     end
 
     def output_value(output)
@@ -222,7 +295,7 @@ module Optcode
 
   class Instruction
     def initialize(code)
-      @code = build_code_string(code)
+      @code = code.rjust(5, '0')
     end
 
     def opcode
@@ -239,22 +312,6 @@ module Optcode
 
     def param_3_mode
       @code[0]
-    end
-
-    private
-
-    def build_code_string(code)
-      if code.length == 1
-        "0000#{code}"
-      elsif code.length == 2
-        "000#{code}"
-      elsif code.length == 3
-        "00#{code}"
-      elsif code.length == 4
-        "0#{code}"
-      else
-        code
-      end
     end
   end
 end
