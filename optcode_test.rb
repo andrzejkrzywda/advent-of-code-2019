@@ -16,24 +16,44 @@ module Optcode
 
     def test_5_1_acceptance
       fake_stdout = FakeStdout.new
-      Optcode::Computer.new(fake_stdin(1), fake_stdout, input_5_file_data).execute
+      Optcode::Computer.new(fake_stdin([1]), fake_stdout, input_5_file_data).execute
       assert_equal(8332629, fake_stdout.contents.last)
     end
 
     def test_5_2_acceptance
       fake_stdout = FakeStdout.new
-      Optcode::Computer.new(fake_stdin(5), fake_stdout, input_5_file_data).execute
+      Optcode::Computer.new(fake_stdin([5]), fake_stdout, input_5_file_data).execute
       assert_equal([8805067], fake_stdout.contents)
+    end
+
+    def test_7_1_acceptance
+      possible_phases = [0,1,2,3,4]
+      final_outputs = []
+      possible_phases.permutation.each do |phases|
+        output = run_thruster(phases[0], 0)
+        output = run_thruster(phases[1], output)
+        output = run_thruster(phases[2], output)
+        output = run_thruster(phases[3], output)
+        output = run_thruster(phases[4], output)
+        final_outputs << output
+      end
+      assert_equal(338603, final_outputs.max)
+    end
+
+    def run_thruster(phase, input)
+      fake_stdout = FakeStdout.new
+      Optcode::Computer.new(fake_stdin([phase, input]), fake_stdout, input_7_file_data).execute
+      return fake_stdout.contents.first
     end
 
     def test_unknown_instruction
       assert_raises(UnknownInstruction) do
-        Computer.new(fake_stdin(55), FakeStdout.new, [5,0,0,0,99]).execute
+        Computer.new(fake_stdin([55]), FakeStdout.new, [5,0,0,0,99]).execute
       end
     end
 
     def test_3_input_instruction
-      assert_equal(Computer.new(fake_stdin(99), FakeStdout.new, [3,2,0]).execute, [3, 2, 99])
+      assert_equal(Computer.new(fake_stdin([99]), FakeStdout.new, [3,2,0]).execute, [3, 2, 99])
     end
 
     private
@@ -42,16 +62,26 @@ module Optcode
       File.open('./input5.txt').read.split(",").map(&:to_i)
     end
 
+    def input_7_file_data
+      File.open('./input7.txt').read.split(",").map(&:to_i)
+    end
+
     def assert_result(input, output)
-      assert_equal(output, Computer.new(fake_stdin(55), FakeStdout.new, input).execute)
+      assert_equal(output, Computer.new(fake_stdin([55]), FakeStdout.new, input).execute)
     end
 
     def fake_stdin(fake_input)
-      fake_stdin = Object.new
-      fake_stdin.define_singleton_method(:gets) do
-        "#{fake_input}\n"
+      FakeStdin.new(fake_input)
+    end
+
+    class FakeStdin
+      def initialize(inputs)
+        @inputs = inputs
       end
-      fake_stdin
+
+      def gets
+        @inputs.shift
+      end
     end
 
     class FakeStdout
